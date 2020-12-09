@@ -2,7 +2,7 @@
 
 Installation:
 ```
-composer require scaventum/infrastructure-as-code
+composer require heyday/infrastructure-as-code
 ```
 
 This repo is intended to contain all infrastructure configuration of all cloud providers used in Wunderman Thompson. IaC is expected to:
