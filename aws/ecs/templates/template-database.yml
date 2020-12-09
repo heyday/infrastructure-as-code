@@ -1,0 +1,102 @@
+  RDSSecurityGroup:
+    Condition: CreateRDS
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDS Allowed Ports
+      VpcId: !Ref 'Vpc'
+      SecurityGroupIngress:
+        - IpProtocol: 'tcp'
+          FromPort: '3306'
+          ToPort: '3306'
+          CidrIp: !Ref 'SourceCidr'
+        - IpProtocol: 'tcp'
+          FromPort: '3306'
+          ToPort: '3306'
+          SourceSecurityGroupId: !Ref 'EcsSecurityGroup'
+      Tags:
+        -
+          Key: 'Name'
+          Value: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', ' ', 'RDS Security Group']]
+        -
+          Key: 'Description'
+          Value: !Join ['', ['Created for ECS cluster', ' ', !Ref 'AppName', '-', !Ref 'AppEnv']]
+  RDSCluster:
+    Condition: CreateRDS
+    Type: AWS::RDS::DBCluster
+    Properties:
+      BackupRetentionPeriod: 1
+      DatabaseName: !Ref 'AppName'
+      DBClusterIdentifier: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-cluster']]
+      DBClusterParameterGroupName: !Ref RDSDBClusterParameterGroup
+      DBSubnetGroupName: !Ref RDSSubnetGroup
+      DeletionProtection: false
+      Engine: aurora-mysql
+      EngineVersion: 5.7.mysql_aurora.2.07.1
+      MasterUsername: !Ref 'AppName'
+      MasterUserPassword: password
+      StorageEncrypted: true
+      Port: 3306
+      PreferredBackupWindow: "17:30-18:00"
+      PreferredMaintenanceWindow: "sat:18:30-sat:19:00"
+      Tags:
+        - Key: application
+          Value: !Ref AppName
+        - Key: environment
+          Value: !Ref AppEnv
+      VpcSecurityGroupIds: 
+        - !Ref RDSSecurityGroup
+  RDSDBClusterParameterGroup: 
+    Condition: CreateRDS
+    Properties: 
+      Description: "CloudFormation Sample Aurora Cluster Parameter Group"
+      Family: aurora-mysql5.7
+      Parameters: 
+        character_set_database: utf32
+    Type: "AWS::RDS::DBClusterParameterGroup"
+  RDSWriter:
+    Condition: CreateRDS
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: db.t2.small
+      DBInstanceIdentifier: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-writer']]
+      DBClusterIdentifier: !Ref RDSCluster
+      PubliclyAccessible: true
+      StorageType: aurora
+      Engine: 'aurora-mysql'
+      DBParameterGroupName: !Ref RDSDBParameterGroup
+      LicenseModel: general-public-license
+      DBSubnetGroupName: !Ref RDSSubnetGroup
+  RDSReadReplica:
+    DependsOn: RDSWriter
+    Condition: CreateRDS
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: db.t2.small
+      DBInstanceIdentifier: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-read-replica']]
+      DBClusterIdentifier: !Ref RDSCluster
+      PubliclyAccessible: true
+      StorageType: aurora
+      Engine: 'aurora-mysql'
+      DBParameterGroupName: !Ref RDSDBParameterGroup
+      LicenseModel: general-public-license
+      DBSubnetGroupName: !Ref RDSSubnetGroup
+  RDSSubnetGroup:
+    Condition: CreateRDS
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Created from the RDS Management Console
+      SubnetIds:
+        - !Ref PublicSubnetAz1
+        - !Ref PublicSubnetAz2
+  RDSDBParameterGroup: 
+    Condition: CreateRDS
+    Properties: 
+      Description: "CloudFormation Sample Aurora Parameter Group"
+      Family: aurora-mysql5.7
+      Parameters: 
+        sql_mode: IGNORE_SPACE
+    Type: "AWS::RDS::DBParameterGroup"

@@ -1,0 +1,164 @@
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref 'VpcCidrBlock'
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+        -
+          Key: 'Name'
+          Value: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', ' ', 'VPC']]
+        -
+          Key: 'Description'
+          Value: !Join ['', ['Created for ECS cluster', ' ', !Ref 'AppName', '-', !Ref 'AppEnv']]
+  PublicSubnetAz1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref 'Vpc'
+      CidrBlock: !Ref 'SubnetCidrBlock1'
+      AvailabilityZone: !If
+        - UseSpecifiedVpcAvailabilityZones
+        - !Select ['0', !Ref 'VpcAvailabilityZones']
+        - !Select
+          - '0'
+          - Fn::GetAZs:
+              !Ref AWS::Region
+      Tags:
+        -
+          Key: 'Name'
+          Value: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', ' ', 'Public Subnet 1']]
+        -
+          Key: 'Description'
+          Value: !Join ['', ['Created for ECS cluster', ' ', !Ref 'AppName', '-', !Ref 'AppEnv']]
+  PublicSubnetAz2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref 'Vpc'
+      CidrBlock: !Ref 'SubnetCidrBlock2'
+      AvailabilityZone: !If
+        - UseSpecifiedVpcAvailabilityZones
+        - !Select ['1', !Ref 'VpcAvailabilityZones']
+        - !Select
+          - '1'
+          - Fn::GetAZs:
+              !Ref AWS::Region
+      Tags:
+        -
+          Key: 'Name'
+          Value: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', ' ', 'Public Subnet 2']]
+        -
+          Key: 'Description'
+          Value: !Join ['', ['Created for ECS cluster', ' ', !Ref 'AppName', '-', !Ref 'AppEnv']]
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        -
+          Key: 'Name'
+          Value: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', ' ', 'Internet Gateway']]
+        -
+          Key: 'Description'
+          Value: !Join ['', ['Created for ECS cluster', ' ', !Ref 'AppName', '-', !Ref 'AppEnv']]
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref 'Vpc'
+      InternetGatewayId: !Ref 'InternetGateway'
+  RouteViaIgw:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'Vpc'
+      Tags:
+        -
+          Key: 'Name'
+          Value: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', ' ', 'Route Table']]
+        -
+          Key: 'Description'
+          Value: !Join ['', ['Created for ECS cluster', ' ', !Ref 'AppName', '-', !Ref 'AppEnv']]
+  PublicRouteViaIgw:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref 'RouteViaIgw'
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref 'InternetGateway'
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PublicSubnetAz1'
+      RouteTableId: !Ref 'RouteViaIgw'
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PublicSubnetAz2'
+      RouteTableId: !Ref 'RouteViaIgw'
+  AlbSecurityGroup:
+    Condition: CreateELB
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ELB Allowed Ports
+      VpcId: !Ref 'Vpc'
+      SecurityGroupIngress:
+        - IpProtocol: 'tcp'
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref 'SourceCidr'
+        - IpProtocol: 'tcp'
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref 'SourceCidr'
+      Tags:
+        -
+          Key: 'Name'
+          Value: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', ' ', 'ALB Security Group']]
+        -
+          Key: 'Description'
+          Value: !Join ['', ['Created for ECS cluster', ' ', !Ref 'AppName', '-', !Ref 'AppEnv']]
+  DefaultTargetGroup:
+    Condition: CreateELB
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-', 'target-group']]
+      VpcId: !Ref 'Vpc'
+      Port: !Ref 'ElbPort'
+      TargetType: !Ref 'TargetType'
+      Protocol: HTTP
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+      Tags:
+        -
+          Key: 'Name'
+          Value: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', ' ', 'Target Group']]
+        -
+          Key: 'Description'
+          Value: !Join ['', ['Created for ECS cluster', ' ', !Ref 'AppName', '-', !Ref 'AppEnv']]
+  EcsElasticLoadBalancer:
+    Condition: CreateELB
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-', 'elb']]
+      SecurityGroups:
+        - !Ref 'AlbSecurityGroup'
+      Subnets:
+        - !Ref 'PublicSubnetAz1'
+        - !Ref 'PublicSubnetAz2'
+      Scheme: internet-facing
+      Tags:
+        -
+          Key: 'Name'
+          Value: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', ' ', 'ALB']]
+        -
+          Key: 'Description'
+          Value: !Join ['', ['Created for ECS cluster', ' ', !Ref 'AppName', '-', !Ref 'AppEnv']]
+  LoadBalancerListener:
+    Condition: CreateELB
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref 'EcsElasticLoadBalancer'
+      Port: !Ref 'ElbPort'
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref 'DefaultTargetGroup'

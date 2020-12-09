@@ -1,0 +1,10 @@
+Outputs:
+  EcsElbName:
+    Description: Load Balancer for ECS Service
+    Value: !If [CreateELB, !Ref 'EcsElasticLoadBalancer', '']
+  RDSClusterName:
+    Description: RDS Cluster
+    Value: !If [CreateRDS, !Ref 'RDSCluster', '']
+  S3BucketName:
+    Description: S3 Public Bucket
+    Value: !If [CreateS3, !Ref 'S3', '']

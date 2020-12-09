@@ -1,0 +1,8 @@
+# Ignore all json files (custom parameter files)
+*.json
+
+# Ignore combined template file
+template.yml
+
+# Do not ignore snippets folder content
+!/snippets/*

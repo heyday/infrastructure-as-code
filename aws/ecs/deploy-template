@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Get arguments
+stackName=$1
+awsProfile=$2
+
+aws cloudformation create-stack --stack-name $stackName --template-body "file://$stackName.yml" --profile $awsProfile

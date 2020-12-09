@@ -1,0 +1,49 @@
+#!/bin/sh
+
+function getEcsTaskRoleName(){
+    arn=$(echo $role| jq -r '.Role.Arn')
+    parameters=$(cat $paramFile)
+    echo $parameters | jq --arg arn "$arn" '. + [{"ParameterKey": "TaskARN","ParameterValue": $arn}]' > $paramFile
+}
+
+# Name of ecs task role
+roleName='ecsTaskExecutionRole'
+
+# Get arguments
+paramFile=$1
+
+# Remove extension from parameters file name
+stackName=${paramFile%.*}
+
+# Check if ecs task role exists
+role=$(aws iam get-role --role-name $roleName)
+
+# Modify parameters file to include ecs task ARN
+if [ $? -eq 0 ]
+then
+    # If ecs role exists, get the ARN
+    getEcsTaskRoleName
+else
+    # If ecs role does not exists, create one, assign policies
+    aws iam create-role --role-name $roleName --assume-role-policy-document file://$(dirname "$0")/snippets/ecs-task-role-policy.json
+    aws iam attach-role-policy --role-name $roleName --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+    aws iam attach-role-policy --role-name $roleName --policy-arn arn:aws:iam::aws:policy/SecretsManagerReadWrite
+    aws iam put-role-policy --role-name $roleName --policy-name SSMRead --policy-document file://$(dirname "$0")/snippets/ecs-task-role-policy-ssm-read.json
+    aws iam put-role-policy --role-name $roleName --policy-name KMSDecrypt --policy-document file://$(dirname "$0")/snippets/ecs-task-role-policy-kms-decrypt.json
+ 
+    # Get the ARN
+    role=$(aws iam get-role --role-name $roleName)
+    getEcsTaskRoleName
+fi
+
+# Combine template files into one temporary file (this is the exact order)
+. $(dirname "$0")/combine
+
+# Execute AWS CLI command to create stack
+aws cloudformation create-stack --stack-name $stackName --template-body file://$(dirname "$0")/template.yml --parameters file://$paramFile --capabilities CAPABILITY_IAM
+
+# Revert parameters file to original state
+echo $parameters > $paramFile
+
+# Remove temporary file
+rm $(dirname "$0")/template.yml

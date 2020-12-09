@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Combine template files into one temporary file (this is the exact order)
+cat $(dirname "$0")/templates/template-parameters.yml $(dirname "$0")/templates/template-network.yml $(dirname "$0")/templates/template-compute.yml $(dirname "$0")/templates/template-database.yml $(dirname "$0")/templates/template-storage.yml $(dirname "$0")/templates/template-output.yml > "$1.yml"

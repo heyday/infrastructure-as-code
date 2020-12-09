@@ -1,0 +1,188 @@
+  EcsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS Allowed Ports
+      VpcId: !Ref 'Vpc'
+      SecurityGroupIngress: !If
+        - CreateELB
+        -
+          -
+            IpProtocol: 'tcp'
+            FromPort: '1'
+            ToPort: '65535'
+            SourceSecurityGroupId: !Ref 'AlbSecurityGroup'
+        -
+          -
+            IpProtocol: 'tcp'
+            FromPort: !Ref 'EcsPort'
+            ToPort: !Ref 'EcsPort'
+            CidrIp: !Ref 'SourceCidr'
+      Tags:
+        -
+          Key: 'Name'
+          Value: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', ' ', 'ECS Security Group']]
+        -
+          Key: 'Description'
+          Value: !Join ['', ['Created for ECS cluster', ' ', !Ref 'AppName', '-', !Ref 'AppEnv']]
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Redis Allowed Ports
+      VpcId: !Ref 'Vpc'
+      SecurityGroupIngress:
+        - IpProtocol: 'tcp'
+          FromPort: '6379'
+          ToPort: '6379'
+          SourceSecurityGroupId: !Ref 'EcsSecurityGroup'
+      Tags:
+        -
+          Key: 'Name'
+          Value: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', ' ', 'Redis Security Group']]
+        -
+          Key: 'Description'
+          Value: !Join ['', ['Created for ECS cluster', ' ', !Ref 'AppName', '-', !Ref 'AppEnv']]
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties: 
+      ClusterName: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv']]
+      ClusterSettings: 
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: application
+          Value: !Ref AppName
+        - Key: environment
+          Value: !Ref AppEnv
+  ECSTaskWWW:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Memory: "2048"
+      Family: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-www']]
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: !Ref TaskARN
+      ExecutionRoleArn: !Ref TaskARN
+      Cpu: "1024"
+      NetworkMode: "awsvpc"
+      ContainerDefinitions:
+        - Name: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-www']]
+          Image: !Ref ImageURL
+          Cpu: 0
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+            - ContainerPort: 443
+              HostPort: 443
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options: 
+              awslogs-group : !Ref WWWLogGroup
+              awslogs-region : !Ref "AWS::Region"
+              awslogs-stream-prefix : ecs
+  ECSTaskRedis:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Memory: "1024"
+      Family: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-redis']]
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: !Ref TaskARN
+      ExecutionRoleArn: !Ref TaskARN
+      Cpu: "512"
+      NetworkMode: "awsvpc"
+      ContainerDefinitions:
+        - Name: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-redis']]
+          Image: redis:alpine
+          Command:
+            - redis-server
+            - --save ""
+            - --appendonly no
+          Cpu: 0
+          PortMappings:
+            - ContainerPort: 6379
+              HostPort: 6379
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options: 
+              awslogs-group : !Ref RedisLogGroup
+              awslogs-region : !Ref "AWS::Region"
+              awslogs-stream-prefix : ecs
+  ECSServiceWWW:
+    DependsOn: LoadBalancerListener
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref ECSCluster
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DeploymentController:
+        Type: ECS
+      DesiredCount: 2
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration: 
+          AssignPublicIp: ENABLED
+          SecurityGroups: 
+            - !Ref EcsSecurityGroup
+          Subnets: 
+            - !Ref PublicSubnetAz1
+            - !Ref PublicSubnetAz2
+      HealthCheckGracePeriodSeconds: 0
+      LoadBalancers:
+        - ContainerName: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-www']]
+          ContainerPort: '80'
+          TargetGroupArn: !Ref DefaultTargetGroup
+      TaskDefinition: !Ref ECSTaskWWW
+      ServiceName: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-www']]
+  PrivateNamespace:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Properties:
+      Name: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-redis']]
+      Vpc: !Ref 'Vpc'
+  DiscoveryService:
+    Type: AWS::ServiceDiscovery::Service
+    Properties: 
+      Description: Discovery Service for the Demo Application
+      DnsConfig:
+        RoutingPolicy: MULTIVALUE
+        DnsRecords:
+          - TTL: 60
+            Type: A
+      HealthCheckCustomConfig: 
+        FailureThreshold: 1
+      Name: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-redis']]
+      NamespaceId: !Ref PrivateNamespace
+  ECSServiceRedis:
+    DependsOn: LoadBalancerListener
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref ECSCluster
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DeploymentController:
+        Type: ECS
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration: 
+          AssignPublicIp: ENABLED
+          SecurityGroups: 
+            - !Ref RedisSecurityGroup
+          Subnets: 
+            - !Ref PublicSubnetAz1
+            - !Ref PublicSubnetAz2
+      TaskDefinition: !Ref ECSTaskRedis
+      ServiceName: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-redis']]
+      ServiceRegistries:
+        - RegistryArn: !GetAtt DiscoveryService.Arn
+  WWWLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Join ['', ['/ecs/',!Ref 'AppName', '-', !Ref 'AppEnv', '-www']]
+  RedisLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Join ['', ['/ecs/',!Ref 'AppName', '-', !Ref 'AppEnv', '-redis']]

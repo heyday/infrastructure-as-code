@@ -1,0 +1,26 @@
+[
+  {
+    "ParameterKey": "AppName",
+    "ParameterValue": "app"
+  },
+  {
+    "ParameterKey": "AppEnv",
+    "ParameterValue": "test"
+  },
+  {
+    "ParameterKey": "CreateRelationalDatabaseSystem",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "CreateSimpleStorageService",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "S3ARN",
+    "ParameterValue": "aws-arn-s3-permission-here"
+  },
+  {
+    "ParameterKey": "SourceCidr",
+    "ParameterValue": "0.0.0.0/0"
+  }
+]

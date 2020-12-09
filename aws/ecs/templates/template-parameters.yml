@@ -1,0 +1,93 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS with ECS Fargate, RDS MySQLAurora Read Replica, and S3
+Parameters:
+  AppName:
+    Type: String
+    Description: Application Name
+  AppEnv:
+    Type: String
+    Description: Application Environment
+  TaskARN:
+    Type: String
+    Description: ARN of Task
+  CreateRelationalDatabaseSystem:
+    Type: String
+    Description: 'Optional - When set to true, creates a RDS with read replica'
+    Default: 'true'
+  CreateSimpleStorageService:
+    Type: String
+    Description: 'Optional - When set to true, creates a S3 standard'
+    Default: 'true'
+  S3ARN:
+    Type: String
+    Description: ARN of S3 administrator
+    Default: ""
+  SourceCidr:
+    Type: String
+    Description: Optional - CIDR/IP range for EcsPort and ElbPort - defaults to 0.0.0.0/0
+    Default: 0.0.0.0/0
+  ImageURL:
+    Type: String
+    Description: URL of application Image
+    Default: firstlookmedia/placeholder-app:latest
+  EcsPort:
+    Type: String
+    Description: Optional - Security Group port to open on ECS instances - defaults to port 80
+    Default: '80'
+  ElbPort:
+    Type: String
+    Description: Optional - Security Group port to open on ELB - port 80 will be open by default
+    Default: '80'
+  ElbHealthCheckTarget:
+    Type: String
+    Description: Optional - Health Check Target for ELB - defaults to HTTP:80/
+    Default: HTTP:80/
+  TargetGroupName:
+    Type: String
+    Description: The target group name
+    Default: ECSFirstRunTargetGroup
+  EcsEndpoint:
+    Type: String
+    Description: 'Optional - ECS Endpoint for the ECS Agent to connect to'
+    Default: ''
+  CreateElasticLoadBalancer:
+    Type: String
+    Description: 'Optional - When set to true, creates a ELB for ECS Service'
+    Default: 'true'
+  VpcAvailabilityZones:
+    Type: CommaDelimitedList
+    Description: 'Optional - Comma-delimited list of two VPC availability zones in which to create subnets'
+    Default: ''
+  VpcCidrBlock:
+    Type: String
+    Description: Optional - CIDR/IP range for the VPC
+    Default: 10.0.0.0/16
+  SubnetCidrBlock1:
+    Type: String
+    Description: Optional - CIDR/IP range for the VPC
+    Default: 10.0.0.0/24
+  SubnetCidrBlock2:
+    Type: String
+    Description: Optional - CIDR/IP range for the VPC
+    Default: 10.0.1.0/24
+  IsFargate:
+    Type: String
+    Description: Optional - Whether to launch instances and create auto scaling group.
+    Default: 'true'
+  TargetType:
+    Type: String
+    Description: Optional - the ALB target group target type, defaults to ip
+    Default: 'ip'
+  TaskMemory:
+    Type: String
+    Description: Memory of Task
+    Default: "2048"
+  TaskCPU:
+    Type: String
+    Description: CPU of Task
+    Default: "1024"
+Conditions:
+  CreateELB: !Equals [!Ref 'CreateElasticLoadBalancer', 'true']
+  CreateRDS: !Equals [!Ref 'CreateRelationalDatabaseSystem', 'true']
+  CreateS3: !Equals [!Ref 'CreateSimpleStorageService', 'true']
+  UseSpecifiedVpcAvailabilityZones: !Not [!Equals [!Join ['', !Ref 'VpcAvailabilityZones'],'']]

@@ -1,0 +1,22 @@
+{
+    "name": "heyday/infrastructure-as-code",
+    "type": "library",
+    "description": "Infrastructure as code for cloud infrastructure providers.",
+    "keywords": [
+        "infrastructure",
+        "code",
+        "aws",
+        "cloudformation",
+        "code"
+    ],
+    "homepage": "https://github.com/heyday",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "scv",
+            "email": "scaventum@gmail.com",
+            "homepage": "https://github.com/heyday",
+            "role": "Developer"
+        }
+    ]
+}

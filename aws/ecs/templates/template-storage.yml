@@ -1,0 +1,33 @@
+  S3:
+    Condition: CreateS3
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join ['', [!Ref 'AppName', '-', !Ref 'AppEnv', '-public']]
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Suspended
+      Tags:
+        - Key: application
+          Value: !Ref AppName
+        - Key: environment
+          Value: !Ref AppEnv
+  S3BucketPolicy:
+    Condition: CreateS3
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3
+      PolicyDocument: 
+        Statement: 
+          - 
+            Action: 
+              - "s3:GetObject"
+            Effect: "Allow"
+            Resource: !Join ["", ["arn:aws:s3:::", !Ref "S3", "/*"]]
+            Principal: "*"
+          - 
+            Action: 
+              - "s3:*"
+            Effect: "Allow"
+            Resource: !Join ["", ["arn:aws:s3:::", !Ref "S3", "/*"]]
+            Principal:
+              AWS: !Ref S3ARN
