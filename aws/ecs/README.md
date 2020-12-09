@@ -19,7 +19,7 @@ This stack will set up ECS cluster-service-task-container with options to includ
 
 1. Go to terminal in project root folder.
 
-2. Copy parameters file example: `cp vendor/scaventum/infrastructure-as-code/aws/ecs/parameters.json.example any-file-name.json`.
+2. Copy parameters file example: `cp vendor/heyday/infrastructure-as-code/aws/ecs/parameters.json.example any-file-name.json`.
 
 3. Change the parameter values into relevant value according to your task. Below is an example with mandatory fields:
     ```
@@ -63,7 +63,7 @@ This stack will set up ECS cluster-service-task-container with options to includ
     * `S3ARN` is role ARN created in AWS console IAM role which has policy to execute S3 actions. _Default: ""_
     * `SourceCidr` is the ip that can initally access the newly created stack, `0.0.0.0/0` means it's publicly accessible. Change it to another ip restrict public access. _Default: "0.0.0.0/0"_
 
-4. Execute command `vendor/scaventum/infrastructure-as-code/aws/ecs/create any-file-name.json`.
+4. Execute command `vendor/heyday/infrastructure-as-code/aws/ecs/create any-file-name.json`.
 
 5. Once stack is created, modify RDS database password [here](https://aws.amazon.com/premiumsupport/knowledge-center/reset-master-user-password-rds/).
 
@@ -73,12 +73,12 @@ This method requires [AWS CloudFormation](https://aws.amazon.com/cloudformation/
 
 1. Go to terminal in project root folder.
 
-2. Execute command: `vendor/scaventum/infrastructure-as-code/aws/ecs/create-template any-stack-name`.
+2. Execute command: `vendor/heyday/infrastructure-as-code/aws/ecs/create-template any-stack-name`.
     > Parameter 1: Stack Name
 
 3. A YML file should be created. This will create a file which contains entire infrastructure codes.
 
-4. Roll out the infrastructure: `vendor/scaventum/infrastructure-as-code/aws/ecs/deploy-template any-stack-name aws-profile`.
+4. Roll out the infrastructure: `vendor/heyday/infrastructure-as-code/aws/ecs/deploy-template any-stack-name aws-profile`.
     > Parameter 1: Stack Name
     > Parameter 2: AWS Profile (must be set on [AWS Credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html))
 
