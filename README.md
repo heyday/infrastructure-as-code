@@ -5,7 +5,7 @@ Installation:
 composer require heyday/infrastructure-as-code
 ```
 
-This repo is intended to contain all infrastructure configuration of all cloud providers used in Wunderman Thompson. IaC is expected to:
+This repo is is expected to:
 
 * Improve documentation of infrastructures
 * Quickly setup new environment
